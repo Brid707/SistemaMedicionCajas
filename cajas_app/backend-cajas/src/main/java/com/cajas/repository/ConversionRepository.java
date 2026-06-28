@@ -7,5 +7,11 @@ import java.util.List;
 
 public interface ConversionRepository extends JpaRepository<Conversion, Long> {
 
-    List<Conversion> findByClienteIdOrderByCreadoEnAsc(Long clienteId);
+    List<Conversion> findByClienteIdOrderByCreadoEnAsc(
+            Long clienteId
+    );
+
+    List<Conversion> findByCliente_Ruta_IdOrderByCreadoEnAsc(
+            Long rutaId
+    );
 }

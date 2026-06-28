@@ -8,7 +8,7 @@ import '../models/total_dia_model.dart';
 import '../models/unidad_model.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:8080/api';
+  static const String baseUrl = 'https://sistemamedicioncajas.onrender.com/api';
 
   Future<AuthResponse> login({
     required String correo,

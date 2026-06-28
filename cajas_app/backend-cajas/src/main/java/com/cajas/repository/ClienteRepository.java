@@ -15,7 +15,21 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
             EstadoCliente estado
     );
 
-    Optional<Cliente> findByIdAndUsuarioId(Long id, Long usuarioId);
+    Optional<Cliente> findFirstByUsuarioIdAndRutaIdAndEstadoOrderByCreadoEnDesc(
+            Long usuarioId,
+            Long rutaId,
+            EstadoCliente estado
+    );
+
+    Optional<Cliente> findByIdAndUsuarioId(
+            Long id,
+            Long usuarioId
+    );
+
+    List<Cliente> findByUsuarioIdAndCreadoEnAfterOrderByCreadoEnDesc(
+            Long usuarioId,
+            LocalDateTime creadoEn
+    );
 
     List<Cliente> findByUsuarioIdAndCreadoEnBetweenOrderByCreadoEnDesc(
             Long usuarioId,
@@ -23,8 +37,8 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
             LocalDateTime fin
     );
 
-    List<Cliente> findByUsuarioIdAndCreadoEnAfterOrderByCreadoEnDesc(
-            Long usuarioId,
-            LocalDateTime fecha
+    List<Cliente> findByRutaIdAndUsuarioIdOrderByCreadoEnDesc(
+            Long rutaId,
+            Long usuarioId
     );
 }

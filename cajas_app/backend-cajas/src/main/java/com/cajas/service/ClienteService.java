@@ -7,9 +7,12 @@ import com.cajas.dto.TotalDiaResponse;
 import com.cajas.model.Cliente;
 import com.cajas.model.Conversion;
 import com.cajas.model.EstadoCliente;
+import com.cajas.model.EstadoRuta;
+import com.cajas.model.Ruta;
 import com.cajas.model.Usuario;
 import com.cajas.repository.ClienteRepository;
 import com.cajas.repository.ConversionRepository;
+import com.cajas.repository.RutaRepository;
 import com.cajas.unidad.TipoUnidad;
 import org.springframework.stereotype.Service;
 
@@ -25,29 +28,49 @@ public class ClienteService {
 
     private final ClienteRepository clienteRepository;
     private final ConversionRepository conversionRepository;
+    private final RutaRepository rutaRepository;
 
     public ClienteService(
             ClienteRepository clienteRepository,
-            ConversionRepository conversionRepository
+            ConversionRepository conversionRepository,
+            RutaRepository rutaRepository
     ) {
         this.clienteRepository = clienteRepository;
         this.conversionRepository = conversionRepository;
+        this.rutaRepository = rutaRepository;
     }
 
     public ClienteResponse crearNuevoCliente(Usuario usuario) {
+        Ruta rutaActiva = rutaRepository
+                .findFirstByUsuarioIdAndEstadoOrderByCreadoEnDesc(
+                        usuario.getId(),
+                        EstadoRuta.ACTIVA
+                )
+                .orElseThrow(() -> new RuntimeException("Primero debes crear una ruta activa."));
+
         String folio = generarFolioCliente();
 
-        Cliente cliente = new Cliente(folio, usuario);
+        Cliente cliente = new Cliente(folio, usuario, rutaActiva);
 
         Cliente clienteGuardado = clienteRepository.save(cliente);
+
+        actualizarTotalRuta(rutaActiva);
 
         return convertirClienteResponse(clienteGuardado);
     }
 
     public ClienteResponse obtenerClienteActivo(Usuario usuario) {
-        Cliente cliente = clienteRepository
+        Ruta rutaActiva = rutaRepository
                 .findFirstByUsuarioIdAndEstadoOrderByCreadoEnDesc(
                         usuario.getId(),
+                        EstadoRuta.ACTIVA
+                )
+                .orElseThrow(() -> new RuntimeException("No hay ruta activa."));
+
+        Cliente cliente = clienteRepository
+                .findFirstByUsuarioIdAndRutaIdAndEstadoOrderByCreadoEnDesc(
+                        usuario.getId(),
+                        rutaActiva.getId(),
                         EstadoCliente.ACTIVO
                 )
                 .orElseThrow(() -> new RuntimeException("No hay cliente activo. Presiona el botón Nueva."));
@@ -62,6 +85,14 @@ public class ClienteService {
     ) {
         Cliente cliente = clienteRepository.findByIdAndUsuarioId(clienteId, usuario.getId())
                 .orElseThrow(() -> new RuntimeException("Cliente no encontrado para este usuario"));
+
+        if (cliente.getRuta() == null) {
+            throw new RuntimeException("Este cliente no pertenece a una ruta.");
+        }
+
+        if (cliente.getRuta().getEstado() == EstadoRuta.FINALIZADA) {
+            throw new RuntimeException("La ruta ya fue finalizada. No se pueden agregar conversiones.");
+        }
 
         if (cliente.getEstado() == EstadoCliente.FINALIZADO) {
             throw new RuntimeException("Este cliente ya fue finalizado. Crea uno nuevo.");
@@ -88,6 +119,8 @@ public class ClienteService {
 
         Cliente clienteActualizado = clienteRepository.save(cliente);
 
+        actualizarTotalRuta(clienteActualizado.getRuta());
+
         return convertirClienteResponse(clienteActualizado);
     }
 
@@ -103,6 +136,8 @@ public class ClienteService {
         cliente.setFinalizadoEn(LocalDateTime.now());
 
         Cliente clienteFinalizado = clienteRepository.save(cliente);
+
+        actualizarTotalRuta(clienteFinalizado.getRuta());
 
         return convertirClienteResponse(clienteFinalizado);
     }
@@ -162,6 +197,25 @@ public class ClienteService {
                 .orElseThrow(() -> new RuntimeException("Cliente no encontrado para este usuario"));
 
         return convertirClienteResponse(cliente);
+    }
+
+    private void actualizarTotalRuta(Ruta ruta) {
+        if (ruta == null || ruta.getId() == null || ruta.getUsuario() == null) {
+            return;
+        }
+
+        List<Cliente> clientes = clienteRepository
+                .findByRutaIdAndUsuarioIdOrderByCreadoEnDesc(
+                        ruta.getId(),
+                        ruta.getUsuario().getId()
+                );
+
+        BigDecimal total = clientes.stream()
+                .map(Cliente::getTotalCajas)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        ruta.setTotalCajas(total);
+        rutaRepository.save(ruta);
     }
 
     private TipoUnidad buscarUnidad(String unidadCodigo) {

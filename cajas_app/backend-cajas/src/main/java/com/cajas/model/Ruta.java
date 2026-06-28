@@ -6,19 +6,19 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "clientes")
-public class Cliente {
+@Table(name = "rutas")
+public class Ruta {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "folio_cliente", nullable = false, unique = true)
-    private String folioCliente;
+    @Column(name = "folio_ruta", nullable = false, unique = true)
+    private String folioRuta;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private EstadoCliente estado = EstadoCliente.ACTIVO;
+    private EstadoRuta estado = EstadoRuta.ACTIVA;
 
     @Column(name = "total_cajas", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalCajas = BigDecimal.ZERO;
@@ -33,26 +33,13 @@ public class Cliente {
     @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ruta_id")
-    private Ruta ruta;
-
-    public Cliente() {
+    public Ruta() {
     }
 
-    public Cliente(String folioCliente, Usuario usuario) {
-        this.folioCliente = folioCliente;
+    public Ruta(String folioRuta, Usuario usuario) {
+        this.folioRuta = folioRuta;
         this.usuario = usuario;
-        this.estado = EstadoCliente.ACTIVO;
-        this.totalCajas = BigDecimal.ZERO;
-        this.creadoEn = LocalDateTime.now();
-    }
-
-    public Cliente(String folioCliente, Usuario usuario, Ruta ruta) {
-        this.folioCliente = folioCliente;
-        this.usuario = usuario;
-        this.ruta = ruta;
-        this.estado = EstadoCliente.ACTIVO;
+        this.estado = EstadoRuta.ACTIVA;
         this.totalCajas = BigDecimal.ZERO;
         this.creadoEn = LocalDateTime.now();
     }
@@ -61,19 +48,19 @@ public class Cliente {
         return id;
     }
 
-    public String getFolioCliente() {
-        return folioCliente;
+    public String getFolioRuta() {
+        return folioRuta;
     }
 
-    public void setFolioCliente(String folioCliente) {
-        this.folioCliente = folioCliente;
+    public void setFolioRuta(String folioRuta) {
+        this.folioRuta = folioRuta;
     }
 
-    public EstadoCliente getEstado() {
+    public EstadoRuta getEstado() {
         return estado;
     }
 
-    public void setEstado(EstadoCliente estado) {
+    public void setEstado(EstadoRuta estado) {
         this.estado = estado;
     }
 
@@ -107,13 +94,5 @@ public class Cliente {
 
     public void setUsuario(Usuario usuario) {
         this.usuario = usuario;
-    }
-
-    public Ruta getRuta() {
-        return ruta;
-    }
-
-    public void setRuta(Ruta ruta) {
-        this.ruta = ruta;
     }
 }

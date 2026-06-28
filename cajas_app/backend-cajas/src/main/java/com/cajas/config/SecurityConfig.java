@@ -40,17 +40,25 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
+
+                        // Rutas públicas
                         .requestMatchers(
+                                "/",
                                 "/api/health",
                                 "/api/unidades/**",
                                 "/api/auth/register",
                                 "/api/auth/login"
                         ).permitAll()
+
+                        // Rutas protegidas con token
                         .requestMatchers(
                                 "/api/auth/me",
                                 "/api/clientes/**",
-                                "/api/historial/**"
+                                "/api/historial/**",
+                                "/api/rutas/**"
                         ).authenticated()
+
+                        // Todo lo demás protegido
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
@@ -63,7 +71,8 @@ public class SecurityConfig {
 
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:*",
-                "http://127.0.0.1:*"
+                "http://127.0.0.1:*",
+                "https://*.onrender.com"
         ));
 
         config.setAllowedMethods(List.of(
@@ -75,9 +84,17 @@ public class SecurityConfig {
         ));
 
         config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("*"));
+
+        /*
+         * Lo dejamos en false porque estamos usando Bearer Token,
+         * no cookies de sesión.
+         */
         config.setAllowCredentials(false);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", config);
 
         return source;
