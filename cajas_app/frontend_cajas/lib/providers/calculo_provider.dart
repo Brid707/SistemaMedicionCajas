@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/cliente_model.dart';
+import '../models/ruta_model.dart';
 import '../models/total_dia_model.dart';
 import '../models/unidad_model.dart';
 import '../services/api_service.dart';
@@ -10,8 +11,10 @@ class CalculoProvider extends ChangeNotifier {
 
   List<UnidadModel> unidades = [];
   List<ClienteModel> historial = [];
+  List<RutaModel> rutas = [];
 
   ClienteModel? clienteActivo;
+  RutaModel? rutaActiva;
   TotalDiaModel? totalDia;
 
   DateTime fechaHistorialSeleccionada = DateTime.now();
@@ -36,6 +39,14 @@ class CalculoProvider extends ChangeNotifier {
         token: token,
         fecha: fechaHistorialSeleccionada,
       );
+
+      rutas = await _apiService.obtenerRutas(token);
+
+      try {
+        rutaActiva = await _apiService.obtenerRutaActiva(token);
+      } catch (_) {
+        rutaActiva = null;
+      }
 
       try {
         clienteActivo = await _apiService.obtenerClienteActivo(token);
@@ -73,6 +84,74 @@ class CalculoProvider extends ChangeNotifier {
         fecha: fecha,
       );
 
+      rutas = await _apiService.obtenerRutas(token);
+
+      try {
+        rutaActiva = await _apiService.obtenerRutaActiva(token);
+      } catch (_) {
+        rutaActiva = null;
+      }
+
+      try {
+        clienteActivo = await _apiService.obtenerClienteActivo(token);
+      } catch (_) {
+        clienteActivo = null;
+      }
+
+      cargando = false;
+      notifyListeners();
+    } catch (e) {
+      error = e.toString().replaceFirst('Exception: ', '');
+      cargando = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> crearRutaNueva(String token) async {
+    cargando = true;
+    error = null;
+    notifyListeners();
+
+    try {
+      fechaHistorialSeleccionada = DateTime.now();
+
+      rutaActiva = await _apiService.crearRutaNueva(token);
+      rutas = await _apiService.obtenerRutas(token);
+
+      clienteActivo = null;
+
+      await _recargarResumen(token);
+
+      cargando = false;
+      notifyListeners();
+    } catch (e) {
+      error = e.toString().replaceFirst('Exception: ', '');
+      cargando = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> finalizarRuta(String token) async {
+    if (rutaActiva == null) {
+      error = 'No hay ruta activa';
+      notifyListeners();
+      return;
+    }
+
+    cargando = true;
+    error = null;
+    notifyListeners();
+
+    try {
+      fechaHistorialSeleccionada = DateTime.now();
+
+      await _apiService.finalizarRuta(token: token, rutaId: rutaActiva!.id);
+
+      rutaActiva = null;
+      clienteActivo = null;
+
+      await _recargarResumen(token);
+
       cargando = false;
       notifyListeners();
     } catch (e) {
@@ -83,14 +162,20 @@ class CalculoProvider extends ChangeNotifier {
   }
 
   Future<void> crearNuevoCliente(String token) async {
+    if (rutaActiva == null) {
+      error = 'Primero crea una ruta';
+      notifyListeners();
+      return;
+    }
+
     cargando = true;
     error = null;
     notifyListeners();
 
     try {
-      clienteActivo = await _apiService.crearClienteNuevo(token);
-
       fechaHistorialSeleccionada = DateTime.now();
+
+      clienteActivo = await _apiService.crearClienteNuevo(token);
 
       await _recargarResumen(token);
 
@@ -108,8 +193,14 @@ class CalculoProvider extends ChangeNotifier {
     required double cantidad,
     required String unidadCodigo,
   }) async {
+    if (rutaActiva == null) {
+      error = 'Primero crea una ruta';
+      notifyListeners();
+      return;
+    }
+
     if (clienteActivo == null) {
-      error = 'Primero presiona Nuevo';
+      error = 'Primero presiona Nueva para crear cliente';
       notifyListeners();
       return;
     }
@@ -119,14 +210,14 @@ class CalculoProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      fechaHistorialSeleccionada = DateTime.now();
+
       clienteActivo = await _apiService.agregarConversion(
         token: token,
         clienteId: clienteActivo!.id,
         cantidad: cantidad,
         unidadCodigo: unidadCodigo,
       );
-
-      fechaHistorialSeleccionada = DateTime.now();
 
       await _recargarResumen(token);
 
@@ -151,12 +242,12 @@ class CalculoProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      fechaHistorialSeleccionada = DateTime.now();
+
       clienteActivo = await _apiService.finalizarCliente(
         token: token,
         clienteId: clienteActivo!.id,
       );
-
-      fechaHistorialSeleccionada = DateTime.now();
 
       await _recargarResumen(token);
 
@@ -181,6 +272,20 @@ class CalculoProvider extends ChangeNotifier {
       token: token,
       fecha: fechaHistorialSeleccionada,
     );
+
+    rutas = await _apiService.obtenerRutas(token);
+
+    try {
+      rutaActiva = await _apiService.obtenerRutaActiva(token);
+    } catch (_) {
+      rutaActiva = null;
+    }
+
+    try {
+      clienteActivo = await _apiService.obtenerClienteActivo(token);
+    } catch (_) {
+      clienteActivo = null;
+    }
   }
 
   void limpiarError() {

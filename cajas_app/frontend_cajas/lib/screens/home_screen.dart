@@ -9,8 +9,8 @@ import '../providers/calculo_provider.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../widgets/app_dark_button.dart';
 import '../widgets/app_header.dart';
-import '../widgets/dark_box.dart';
 import 'cliente_detalle_screen.dart';
+import 'ruta_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,7 +19,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-enum PantallaActual { home, calculo, historial }
+enum PantallaActual { home, calculo, ruta, historial }
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController cantidadController = TextEditingController();
@@ -109,9 +109,64 @@ class _HomeScreenState extends State<HomeScreen> {
         return 0;
       case PantallaActual.calculo:
         return 1;
-      case PantallaActual.historial:
+      case PantallaActual.ruta:
         return 2;
+      case PantallaActual.historial:
+        return 3;
     }
+  }
+
+  Future<void> crearRutaNueva() async {
+    final auth = context.read<AuthProvider>();
+    final calculo = context.read<CalculoProvider>();
+
+    if (auth.token == null) return;
+
+    await calculo.crearRutaNueva(auth.token!);
+
+    if (!mounted) return;
+
+    if (calculo.error != null) {
+      mostrarMensaje(calculo.error!);
+      return;
+    }
+
+    cantidadController.clear();
+
+    setState(() {
+      pantallaActual = PantallaActual.home;
+    });
+
+    mostrarMensaje('Ruta nueva creada. Ahora puedes crear clientes.');
+  }
+
+  Future<void> finalizarRuta() async {
+    final auth = context.read<AuthProvider>();
+    final calculo = context.read<CalculoProvider>();
+
+    if (auth.token == null) return;
+
+    if (calculo.rutaActiva == null) {
+      mostrarMensaje('No hay ruta activa');
+      return;
+    }
+
+    await calculo.finalizarRuta(auth.token!);
+
+    if (!mounted) return;
+
+    if (calculo.error != null) {
+      mostrarMensaje(calculo.error!);
+      return;
+    }
+
+    cantidadController.clear();
+
+    setState(() {
+      pantallaActual = PantallaActual.ruta;
+    });
+
+    mostrarMensaje('Ruta finalizada correctamente.');
   }
 
   Future<void> crearNuevoCliente() async {
@@ -119,6 +174,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final calculo = context.read<CalculoProvider>();
 
     if (auth.token == null) return;
+
+    if (calculo.rutaActiva == null) {
+      mostrarMensaje('Primero crea una ruta');
+      return;
+    }
 
     await calculo.crearNuevoCliente(auth.token!);
 
@@ -139,8 +199,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (auth.token == null) return;
 
+    if (calculo.rutaActiva == null) {
+      mostrarMensaje('Primero crea una ruta');
+      return;
+    }
+
     if (calculo.clienteActivo == null) {
-      mostrarMensaje('Primero presiona NUEVA');
+      mostrarMensaje('Primero presiona NUEVA para crear cliente');
       return;
     }
 
@@ -168,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     cantidadController.clear();
-    mostrarMensaje('Conversión guardada');
+    mostrarMensaje('Conversión guardada en la ruta.');
   }
 
   Future<void> finalizarCliente() async {
@@ -192,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     cantidadController.clear();
-    mostrarMensaje('Cliente finalizado. Campos bloqueados.');
+    mostrarMensaje('Cliente finalizado. Puedes crear otro cliente.');
   }
 
   Future<void> seleccionarFechaHistorial() async {
@@ -246,7 +311,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       if (index == 0) pantallaActual = PantallaActual.home;
       if (index == 1) pantallaActual = PantallaActual.calculo;
-      if (index == 2) pantallaActual = PantallaActual.historial;
+      if (index == 2) pantallaActual = PantallaActual.ruta;
+      if (index == 3) pantallaActual = PantallaActual.historial;
     });
 
     recargarAlCambiarPantalla();
@@ -273,8 +339,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   Positioned(
-                    left: 42,
-                    right: 42,
+                    left: 24,
+                    right: 24,
                     bottom: 18,
                     child: AppBottomNav(
                       currentIndex: currentIndex,
@@ -293,13 +359,24 @@ class _HomeScreenState extends State<HomeScreen> {
         return _pantallaHome(calculo);
       case PantallaActual.calculo:
         return _pantallaCalculo(calculo);
+      case PantallaActual.ruta:
+        return RutaScreen(
+          calculo: calculo,
+          onCrearRuta: calculo.cargando ? null : crearRutaNueva,
+          onFinalizarRuta: calculo.cargando || calculo.rutaActiva == null
+              ? null
+              : finalizarRuta,
+          onRecargar: recargarAlCambiarPantalla,
+        );
       case PantallaActual.historial:
         return _pantallaHistorial(calculo);
     }
   }
 
   Widget _pantallaHome(CalculoProvider calculo) {
+    final bool rutaActiva = calculo.rutaActiva != null;
     final bool clienteActivo = calculo.clienteActivo != null;
+    final bool camposActivos = rutaActiva && clienteActivo;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 110),
@@ -312,52 +389,90 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           Padding(
-            padding: const EdgeInsets.only(left: 37, top: 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: AppDarkButton(
-                text: clienteActivo ? 'ACTIVO' : 'NUEVA',
-                onPressed: calculo.cargando || clienteActivo
-                    ? null
-                    : crearNuevoCliente,
-                width: 118,
-                height: 42,
-              ),
+            padding: const EdgeInsets.only(left: 30, right: 30, top: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: AppDarkButton(
+                    text: rutaActiva ? 'EN RUTA' : 'NUEVA RUTA',
+                    onPressed: calculo.cargando
+                        ? null
+                        : rutaActiva
+                        ? () {
+                            setState(() {
+                              pantallaActual = PantallaActual.ruta;
+                            });
+                            recargarAlCambiarPantalla();
+                          }
+                        : crearRutaNueva,
+                    height: 42,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: AppDarkButton(
+                    text: clienteActivo ? 'CLIENTE ACTIVO' : 'NUEVA',
+                    onPressed: calculo.cargando || !rutaActiva || clienteActivo
+                        ? null
+                        : crearNuevoCliente,
+                    height: 42,
+                  ),
+                ),
+              ],
             ),
           ),
 
           const SizedBox(height: 12),
 
-          if (!clienteActivo)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 42),
-              child: Text(
-                'Presiona NUEVA para iniciar un cliente y activar los campos.',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.normal.copyWith(
-                  fontSize: 13,
-                  color: AppColors.textMuted,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+          _mensajeEstadoHome(
+            rutaActiva: rutaActiva,
+            clienteActivo: clienteActivo,
+          ),
 
           const SizedBox(height: 12),
 
           _textoCentro('Ingrese la cantidad de que\ndesee convertir a cajas'),
           const SizedBox(height: 22),
-          _filaCantidad(clienteActivo),
+          _filaCantidad(camposActivos),
           const SizedBox(height: 28),
           _textoCentro('Despliegue y elija la conversion'),
           const SizedBox(height: 22),
-          _filaUnidad(calculo, clienteActivo),
+          _filaUnidad(calculo, camposActivos),
           const SizedBox(height: 28),
           _textoCentro('Resultado en cajas'),
           const SizedBox(height: 22),
-          _filaResultado(clienteActivo),
+          _filaResultado(camposActivos),
           const SizedBox(height: 34),
-          _botonesHome(calculo, clienteActivo),
+          _botonesHome(calculo, camposActivos),
         ],
+      ),
+    );
+  }
+
+  Widget _mensajeEstadoHome({
+    required bool rutaActiva,
+    required bool clienteActivo,
+  }) {
+    String mensaje;
+
+    if (!rutaActiva) {
+      mensaje = 'Primero crea una ruta para poder agregar clientes.';
+    } else if (!clienteActivo) {
+      mensaje = 'Ruta activa. Presiona NUEVA para iniciar un cliente.';
+    } else {
+      mensaje = 'Cliente activo. Ya puedes capturar cajas.';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 42),
+      child: Text(
+        mensaje,
+        textAlign: TextAlign.center,
+        style: AppTextStyles.normal.copyWith(
+          fontSize: 13,
+          color: AppColors.textMuted,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -365,6 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _pantallaCalculo(CalculoProvider calculo) {
     final cliente = calculo.clienteActivo;
     final conversiones = cliente?.conversiones ?? [];
+    final ruta = calculo.rutaActiva;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 110),
@@ -375,7 +491,33 @@ class _HomeScreenState extends State<HomeScreen> {
             titulo: 'Total',
             subtitulo: 'CAJAS DE LA\nSOLICITUD ACTUAL',
           ),
-          const SizedBox(height: 56),
+
+          const SizedBox(height: 28),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 42),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: ruta == null
+                    ? Colors.grey.shade400
+                    : AppColors.primaryDark,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                ruta == null
+                    ? 'SIN RUTA ACTIVA'
+                    : 'RUTA ACTIVA: ${ruta.totalCajas.toStringAsFixed(2)} CAJAS',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.button.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 34),
+
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 58),
             child: Column(
@@ -405,7 +547,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 260),
+
+          const SizedBox(height: 220),
+
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 58),
             child: Row(
@@ -508,30 +652,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       recargarAlCambiarPantalla();
                     });
                   },
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: DarkBox(
-                          height: 68,
-                          child: Center(
+                  child: _campoBloqueado(
+                    activo: true,
+                    child: Center(
+                      child: Row(
+                        children: [
+                          Expanded(
                             child: Text(
                               'CLIENTE ${cliente.id}\n${cliente.totalCajas.toStringAsFixed(2)} CAJAS',
                               textAlign: TextAlign.center,
                               style: AppTextStyles.button,
                             ),
                           ),
-                        ),
+                          SizedBox(
+                            width: 82,
+                            child: Text(
+                              'hora ${_hora(cliente.creadoEn)}',
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.button,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 24),
-                      SizedBox(
-                        width: 82,
-                        child: Text(
-                          'hora ${_hora(cliente.creadoEn)}',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.label,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               );

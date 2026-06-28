@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/auth_response.dart';
 import '../models/cliente_model.dart';
+import '../models/ruta_model.dart';
 import '../models/total_dia_model.dart';
 import '../models/unidad_model.dart';
 
@@ -86,6 +87,77 @@ class ApiService {
     }
 
     throw Exception('No se pudieron cargar las unidades');
+  }
+
+  Future<RutaModel> crearRutaNueva(String token) async {
+    final url = Uri.parse('$baseUrl/rutas/nueva');
+
+    final response = await http.post(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return RutaModel.fromJson(data);
+    }
+
+    throw Exception(data['message'] ?? 'No se pudo crear la ruta');
+  }
+
+  Future<RutaModel> obtenerRutaActiva(String token) async {
+    final url = Uri.parse('$baseUrl/rutas/activa');
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return RutaModel.fromJson(data);
+    }
+
+    throw Exception(data['message'] ?? 'No hay ruta activa');
+  }
+
+  Future<RutaModel> finalizarRuta({
+    required String token,
+    required int rutaId,
+  }) async {
+    final url = Uri.parse('$baseUrl/rutas/$rutaId/finalizar');
+
+    final response = await http.post(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return RutaModel.fromJson(data);
+    }
+
+    throw Exception(data['message'] ?? 'No se pudo finalizar la ruta');
+  }
+
+  Future<List<RutaModel>> obtenerRutas(String token) async {
+    final url = Uri.parse('$baseUrl/rutas');
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return (data as List).map((item) => RutaModel.fromJson(item)).toList();
+    }
+
+    throw Exception(data['message'] ?? 'No se pudieron cargar las rutas');
   }
 
   Future<ClienteModel> crearClienteNuevo(String token) async {
@@ -183,23 +255,6 @@ class ApiService {
     }
 
     throw Exception(data['message'] ?? 'No se pudo cargar historial');
-  }
-
-  Future<TotalDiaModel> obtenerTotalDia(String token) async {
-    final url = Uri.parse('$baseUrl/historial/dia');
-
-    final response = await http.get(
-      url,
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    final data = jsonDecode(response.body);
-
-    if (response.statusCode == 200) {
-      return TotalDiaModel.fromJson(data);
-    }
-
-    throw Exception(data['message'] ?? 'No se pudo cargar total del día');
   }
 
   Future<TotalDiaModel> obtenerTotalDiaPorFecha({

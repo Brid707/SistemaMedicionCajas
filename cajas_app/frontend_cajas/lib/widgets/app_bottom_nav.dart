@@ -22,11 +22,11 @@ class AppBottomNav extends StatelessWidget {
         borderRadius: BorderRadius.circular(31),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _item(index: 0, icon: Icons.home, label: 'Home'),
-          _item(index: 1, icon: Icons.calculate_outlined, label: 'Calculo'),
-          _item(index: 2, icon: Icons.history, label: 'Historial'),
+          _item(index: 1, icon: Icons.calculate_outlined, label: 'Cálculo'),
+          _item(index: 2, icon: Icons.route_outlined, label: 'Ruta'),
+          _item(index: 3, icon: Icons.history, label: 'Historial'),
         ],
       ),
     );
@@ -39,18 +39,21 @@ class AppBottomNav extends StatelessWidget {
   }) {
     final bool activo = currentIndex == index;
 
-    return InkWell(
-      onTap: () => onTap(index),
-      borderRadius: BorderRadius.circular(24),
-      child: SizedBox(
-        width: 86,
+    return Expanded(
+      child: InkWell(
+        onTap: () => onTap(index),
+        borderRadius: BorderRadius.circular(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: AppColors.white, size: activo ? 28 : 25),
+            Icon(icon, color: AppColors.white, size: activo ? 27 : 24),
+            const SizedBox(height: 1),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppTextStyles.bottomNav.copyWith(
+                fontSize: 12,
                 fontWeight: activo ? FontWeight.w700 : FontWeight.w400,
               ),
             ),
